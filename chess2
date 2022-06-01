@@ -1,0 +1,161 @@
+package view;
+
+import controller.GameController;
+
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.URL;
+
+/**
+ * 游戏过程中的整个游戏界面，是一切的载体
+ */
+public class ChessGameFrame extends JFrame {
+    //    public final Dimension FRAME_SIZE ;
+    private final int WIDTH;
+    private final int HEIGHT;
+    public final int CHESSBOARD_SIZE;
+    private GameController gameController;
+    public Chessboard chessboard;
+    public JLabel statusLabel;
+    public JLabel warningLabel;
+    private final JLabel background = new JLabel();
+
+    public ChessGameFrame(int width, int height) {
+        setTitle("2022 CS102A Project"); //设置标题
+        this.WIDTH = width;
+        this.HEIGHT = height;
+        this.CHESSBOARD_SIZE = HEIGHT * 4 / 5;
+
+        setSize(WIDTH, HEIGHT);
+        setLocationRelativeTo(null); // Center the window.
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); //设置程序关闭按键，如果点击右上方的叉就游戏全部关闭了
+        setLayout(null);
+
+        addChessboard();//棋盘
+        addStatusLabel();//标题
+        addWarningLabel();
+        addSaveButton();
+        addLoadButton();
+        addRestartButton();
+
+        URL resource = getClass().getResource("/images/background.jpg"); // 获取背景图片路径
+        ImageIcon icon = new ImageIcon(resource); // 创建背景图片对象
+        background.setIcon(icon); // 设置标签组件要显示的图标
+        background.setBounds(0, 0, icon.getIconWidth(), icon.getIconHeight()); // 设置组件的显示位置及大小
+        getContentPane().add(background); // 将组件添加到面板中
+
+        try {
+            Clip clip = AudioSystem.getClip();
+            clip.open(AudioSystem.getAudioInputStream(new File("resource/sound/BGM.wav")));
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+        }catch (LineUnavailableException| UnsupportedAudioFileException|IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 在游戏面板中添加棋盘
+     */
+    private void addChessboard() {
+        Chessboard chessboard = new Chessboard(CHESSBOARD_SIZE, CHESSBOARD_SIZE, this);
+        gameController = new GameController(chessboard);
+        chessboard.setLocation(HEIGHT / 10, HEIGHT / 10);
+        this.chessboard=chessboard;
+        add(chessboard);
+    }
+
+    /**
+     * 在游戏面板中添加标签
+     */
+    private void addStatusLabel(){
+        statusLabel = new JLabel("Current player: Orange");
+        statusLabel.setLocation(HEIGHT, HEIGHT / 10);
+        statusLabel.setSize(250, 60);
+        statusLabel.setFont(new Font("Rockwell", Font.BOLD, 20));
+        add(statusLabel);
+    }
+
+    private void addWarningLabel(){
+        warningLabel = new JLabel("");
+        warningLabel.setLocation(HEIGHT,HEIGHT/10+90);
+        warningLabel.setSize(300,60);
+        warningLabel.setFont(new Font("Rockwell", Font.BOLD, 20));
+        add(warningLabel);
+    }
+
+    private void addRestartButton(){
+        JButton button=new JButton("Restart");
+        button.setLocation(HEIGHT, HEIGHT /10+180);
+        button.setSize(200,60);
+        button.setFont(new Font("Rockwell",Font.BOLD,20));
+        add(button);
+        button.addActionListener(e -> {
+            System.out.println("Click Restart");
+            Chessboard chessboard = new Chessboard(CHESSBOARD_SIZE, CHESSBOARD_SIZE, this);
+            gameController = new GameController(chessboard);
+            chessboard.setLocation(HEIGHT / 10, HEIGHT / 10);
+            remove(this.chessboard);
+            add(chessboard);
+
+            URL resource = getClass().getResource("/images/background.jpg"); // 获取背景图片路径
+            ImageIcon icon = new ImageIcon(resource); // 创建背景图片对象
+            background.setIcon(icon); // 设置标签组件要显示的图标
+            background.setBounds(0, 0, icon.getIconWidth(), icon.getIconHeight()); // 设置组件的显示位置及大小
+            getContentPane().add(background); // 将组件添加到面板中
+
+            repaint();
+        });
+    }
+
+    private void addSaveButton(){
+        JButton button = new JButton("Save game");
+        button.setLocation(HEIGHT, HEIGHT / 10 + 240);
+        button.setSize(200, 60);
+        button.setFont(new Font("Rockwell", Font.BOLD, 20));
+        add(button);
+
+        button.addActionListener(action -> {
+            JFileChooser fileChooser = new JFileChooser("./resource"){{//设置默认路径
+                setSelectedFile(new File("save.txt"));//设置默认文件名
+                setFileFilter(new FileNameExtensionFilter("*.txt", "txt"));//设置文件过滤器
+            }};
+            int res = fileChooser.showSaveDialog(this);
+            if (res == JFileChooser.APPROVE_OPTION) {//如果点击了“保存”
+                try(FileWriter writer = new FileWriter(fileChooser.getSelectedFile())){
+                    writer.write(chessboard.toString());
+                }catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private void addLoadButton() {
+        JButton button = new JButton("Load game");
+        button.setLocation(HEIGHT, HEIGHT / 10 + 300);
+        button.setSize(200, 60);
+        button.setFont(new Font("Rockwell", Font.BOLD, 20));
+        add(button);
+
+        button.addActionListener(action -> {
+            JFileChooser fileChooser = new JFileChooser("./resource");
+            int res = fileChooser.showOpenDialog(this);
+            if (res == JFileChooser.APPROVE_OPTION) {//如果点击了“打开”
+                File file = fileChooser.getSelectedFile();
+                if(!file.getName().split("\\.")[1].equals("txt")){
+                    JOptionPane.showMessageDialog(this, "The selected save must be txt!");
+                    return;
+                }
+                gameController.loadGameFromPath(file.getAbsolutePath());
+            }
+        });
+    }
+}
